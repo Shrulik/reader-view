@@ -3,7 +3,7 @@
   "name": "Yuri's Reader View",
   "description": "__MSG_description__",
   "default_locale": "en",
-  "version": "0.7.3",
+  "version": "0.8.3",
   "permissions": [
     "tabs",
     "storage",
@@ -39,6 +39,19 @@
   },
   "incognito": "split",
   "commands": {
+    "go-to-next": {
+      "suggested_key": {
+        "default": "Ctrl+Right"
+      },
+      "description": "Changes tab URL to the logical next page if it was detected."
+    },
+    "go-to-prev":{
+      "suggested_key": {
+        "default": "Ctrl+Left",
+        "mac": "Command+Left"
+      },
+      "description": "Changes tab URL to the logical previous page if it was detected."
+    },
     "_execute_action": {},
     "toggle-reader-view": {
       "description": "Toggle the Reader View"

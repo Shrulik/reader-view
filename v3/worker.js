@@ -24,6 +24,35 @@ self.importScripts('menus.js');
 self.importScripts('navigate.js');
 self.importScripts('storage.js');
 
+/**
+ * Dynamically loads to the passed tab the nextChap library, unless it was already loaded.
+ * @param tab - Tab to target
+ * @returns {Promise<void>} - Resolves when loading is completed
+ */
+async function loadNextChap(tab) {
+
+    const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
+    const sessionStorage = await chrome.storage.session.get(nextChapLoadedOnPage);
+
+    if (!sessionStorage.nextChapLoadedOnPage) {
+        const target = {tabId: tab.id}
+
+        await chrome.scripting.executeScript({
+            target,
+            injectImmediately: true,
+            files: ['data/inject/next-chap/fast-levenshtein/levenshtein.js']
+        });
+
+        await chrome.scripting.executeScript({
+            target,
+            injectImmediately: true,
+            files: ['data/inject/next-chap/NextChap.js']
+        });
+
+        await chrome.storage.session.set({nextChapLoadedOnPage: true});
+    }
+}
+
 const notify = e => chrome.notifications.create({
   title: chrome.runtime.getManifest().name,
   type: 'basic',
@@ -78,25 +107,7 @@ const onClicked = async (tab, embedded = false) => {
         args: [embedded]
       });
 
-      const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
-      const sessionStorage =  await chrome.storage.session.get(nextChapLoadedOnPage);
-
-      if (!sessionStorage.nextChapLoadedOnPage) {
-
-        await chrome.scripting.executeScript({
-          target,
-          injectImmediately: true,
-          files: ['data/inject/next-chap/fast-levenshtein/levenshtein.js']
-        });
-        
-        await chrome.scripting.executeScript({
-          target,
-          injectImmediately: true,
-          files: ['data/inject/next-chap/NextChap.js']
-        });
-
-        await chrome.storage.session.set({ nextChapLoadedOnPage: true });
-      }
+      await loadNextChap(tab);
 
       await chrome.scripting.executeScript({
         target,
@@ -112,13 +123,50 @@ const onClicked = async (tab, embedded = false) => {
 };
 chrome.action.onClicked.addListener(onClicked);
 
-chrome.commands.onCommand.addListener(function(command) {
-  if (command === 'toggle-reader-view') {
-    chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    }, ([tab]) => tab && onClicked(tab));
-  }
+
+chrome.commands.onCommand.addListener(function(command, tab) {
+    if (command === 'toggle-reader-view') {
+        chrome.tabs.query({
+            active: true,
+            currentWindow: true
+        }, ([tab]) => tab && onClicked(tab));
+    }
+
+    if (command === 'go-to-next') {
+        loadNextChap(tab).then(() => {
+            chrome.scripting.executeScript(
+                {
+                    target: {tabId: tab.id},
+                    func: goToNext,
+                }
+            )
+        })
+    }
+
+    if (command === 'go-to-prev') {
+        loadNextChap(tab).then(() => {
+            chrome.scripting.executeScript(
+                {
+                    target: {tabId: tab.id},
+                    func: goToPrev,
+                }
+            )
+        })
+    }
+
+    function goToNext() {
+        const navLinks = extractChapLinks(document)
+        const nextLink = navLinks?.nextLink;
+        if (nextLink)
+            location.href = nextLink;
+    }
+
+    function goToPrev() {
+        const navLinks = extractChapLinks(document)
+        const prevLink = navLinks?.prevLink;
+        if (prevLink)
+            location.href = prevLink;
+    }
 });
 
 /* when tab loads switch to the reader view */
