@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Reader View",
+  "name": "Yuri's Reader View",
   "description": "__MSG_description__",
   "default_locale": "en",
   "version": "0.7.3",
   "permissions": [
+    "tabs",
     "storage",
     "activeTab",
     "scripting",

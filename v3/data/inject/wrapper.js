@@ -159,6 +159,12 @@ try {
         throw Error('Cannot convert this page!');
       }
 
+
+      const navLinks = extractChapLinks(document)
+      
+      article.nextLink = navLinks?.nextLink;
+      article.prevLink = navLinks?.prevLink;
+      
       article.url = article.url || location.href;
 
       // detect doi

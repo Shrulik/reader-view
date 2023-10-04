@@ -76,6 +76,27 @@ const onClicked = async (tab, embedded = false) => {
         func: b => window.embedded = b,
         args: [embedded]
       });
+
+      const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
+      const sessionStorage =  await chrome.storage.session.get(nextChapLoadedOnPage);
+
+      if (!sessionStorage.nextChapLoadedOnPage) {
+
+        await chrome.scripting.executeScript({
+          target,
+          injectImmediately: true,
+          files: ['data/inject/next-chap/fast-levenshtein/levenshtein.js']
+        });
+        
+        await chrome.scripting.executeScript({
+          target,
+          injectImmediately: true,
+          files: ['data/inject/next-chap/NextChap.js']
+        });
+
+        await chrome.storage.session.set({ nextChapLoadedOnPage: true });
+      }
+
       await chrome.scripting.executeScript({
         target,
         injectImmediately: true,
@@ -113,6 +134,22 @@ lazy.watch = (tabId, info, tab) => {
   }
 
   if (lazy.cache[tabId]) {
+    // Check if the tab has finished loading
+    if (tabId === tab.id && (info.status === 'complete' || info.status === 'loading')) {
+      console.log(`Tab ${tabId} finished loading. Url is ${tab.url}. Inserting loading CSS.`);
+
+      chrome.scripting.insertCSS({
+        files : ['data/inject/next-chap/loading.css'],
+        target: {
+          tabId: tab.id
+        }
+      }).then(() => {
+        console.log("Loading CSS injected.");
+      }, error => {
+        console.error(`Error injecting loading CSS: ${error}`);
+      });
+    }
+
     onClicked(tab);
     delete lazy.cache[tabId];
     if (Object.keys(lazy.cache).length === 0) {

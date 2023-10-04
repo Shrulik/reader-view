@@ -1,1 +1,6 @@
 .DS_Store
+TODO.MD
+.idea/
+node_modules/
+v2/
+.vscode/

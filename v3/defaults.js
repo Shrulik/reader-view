@@ -106,6 +106,8 @@ body[data-mode=dark] {}`,
     'highlight': ['Ctrl/Command', 'Shift', 'KeyH'],
     'next-page': ['Ctrl/Command', 'Shift', 'ArrowRight'],
     'previous-page': ['Ctrl/Command', 'Shift', 'ArrowLeft'],
+    'previous-chapter': ['Ctrl/Command', 'ArrowLeft'],
+    'next-chapter': ['Ctrl/Command', 'ArrowRight'],
     'toggle-toolbar': ['Ctrl/Command', 'Shift', 'KeyY']
   },
   './plugins/tip/core.mjs': true,

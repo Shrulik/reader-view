@@ -471,6 +471,10 @@ body[data-speech=false] #speech {
 #navigate input:disabled {
   opacity: 0.3;
 }
+#navigate input:not([disabled]):hover {
+  font-size: 38px;
+  transition: font-size 0.2s ease-in-out;
+}
 #guide {
   position: fixed;
   left: 48px;

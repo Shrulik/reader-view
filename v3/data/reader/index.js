@@ -137,7 +137,7 @@ const favicon = article => {
 };
 
 const template = async () => {
-  const r = await await fetch('template.html');
+  const r = await fetch('template.html');
   return await r.text();
 };
 
@@ -159,7 +159,7 @@ const download = (href, type, convert = false) => {
   const link = Object.assign(document.createElement('a'), {
     href,
     type,
-    download: article.title.replace( /[<>:"/\\|?*]+/g, '' ) + '.' + extension
+    download: article.title.replace(/[<>:"/\\|?*]+/g, '') + '.' + extension
   });
   link.dispatchEvent(new MouseEvent('click'));
 };
@@ -286,7 +286,7 @@ shortcuts.render = (spans = shortcuts.keys()) => {
             window.notify(lastError);
           }
           else {
-            const {width} = document.getElementById('toolbar').getBoundingClientRect();
+            const { width } = document.getElementById('toolbar').getBoundingClientRect();
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -551,11 +551,11 @@ const styles = {
 
 function getFont(font) {
   switch (font) {
-  case 'serif':
-    return 'Georgia, "Times New Roman", serif';
-  case 'sans-serif':
-  default:
-    return 'Helvetica, Arial, sans-serif';
+    case 'serif':
+      return 'Georgia, "Times New Roman", serif';
+    case 'sans-serif':
+    default:
+      return 'Helvetica, Arial, sans-serif';
   }
 }
 
@@ -653,7 +653,7 @@ document.addEventListener('click', e => {
   }
   else if (cmd === 'image-increase' || cmd === 'image-decrease') {
     [...iframe.contentDocument.images].forEach(img => {
-      const {width} = img.getBoundingClientRect();
+      const { width } = img.getBoundingClientRect();
       if (width >= 32) {
         const scale = cmd === 'image-increase' ? 1.1 : 0.9;
         img.width = Math.max(width * scale, 32);
@@ -695,7 +695,7 @@ document.addEventListener('click', e => {
       document.title = document.oTitle;
       [...document.querySelectorAll('.edit-toolbar')].forEach(e => {
         const a = e.contentDocument.querySelector('[data-command="close"]');
-        a.dispatchEvent(new Event('click', {bubbles: true}));
+        a.dispatchEvent(new Event('click', { bubbles: true }));
       });
     }
   }
@@ -741,10 +741,10 @@ const render = () => chrome.runtime.sendMessage({
   }
 
   iframe.contentDocument.open();
-  const {pathname, hostname} = (new URL(article.url));
+  const { pathname, hostname } = (new URL(article.url));
   const gcs = window.getComputedStyle(document.documentElement);
 
-  const {textVide} = await import('./libs/text-vide/index.mjs');
+  const { textVide } = await import('./libs/text-vide/index.mjs');
   // http://add0n.com/chrome-reader-view.html#IDComment1118667428
   const content = config.prefs['fixation-point'] ? textVide(article.content.replace(/&nbsp;/g, ' '), {
     fixationPoint: config.prefs['fixation-point']
@@ -843,7 +843,7 @@ const render = () => chrome.runtime.sendMessage({
     const next = document.getElementById('navigate-next');
     const previous = document.getElementById('navigate-previous');
     previous.onclick = next.onclick = e => {
-      const {clientHeight} = iframe.contentDocument.documentElement;
+      const { clientHeight } = iframe.contentDocument.documentElement;
       const lineHeight = parseInt(window.getComputedStyle(document.body).fontSize) * config.prefs.guide;
       const guide = document.getElementById('guide');
       guide.style.height = lineHeight + 'px';
@@ -864,7 +864,7 @@ const render = () => chrome.runtime.sendMessage({
       guide.timeout = setTimeout(() => guide.classList.add('hidden'), config.prefs['guide-timeout']);
     };
     const scroll = () => {
-      const {scrollHeight, clientHeight, scrollTop} = iframe.contentDocument.documentElement;
+      const { scrollHeight, clientHeight, scrollTop } = iframe.contentDocument.documentElement;
       previous.disabled = scrollTop === 0;
       next.disabled = scrollHeight <= scrollTop + clientHeight;
     };
@@ -899,6 +899,56 @@ const render = () => chrome.runtime.sendMessage({
     ready.cache.length = 0;
   }
 
+  // chapter navigation
+  {
+    const nextChap = document.getElementById('navigate-next-chapter');
+    const prevChap = document.getElementById('navigate-previous-chapter');
+
+    if (article.nextLink) {
+      nextChap.disabled = false;
+      nextChap.onclick = (e) => {
+        chrome.runtime.sendMessage({
+          cmd: 'open',
+          url: article.nextLink,
+          reader: true,
+          current: e.ctrlKey === false && e.metaKey === false
+        });
+      }
+
+      shortcuts.set(nextChap, {
+        id: 'next-chapter',
+        span: nextChap,
+        action: () => nextChap.click()
+      });
+    }
+
+    if (article.prevLink) {
+      prevChap.disabled = false;
+      prevChap.onclick = (e) => {
+        console.log("BACK LOGGGING: In onClick, calling sendMessage with 'open' command ")
+        chrome.runtime.sendMessage({
+          cmd: 'open',
+          url: article.prevLink,
+          reader: true,
+          current: e.ctrlKey === false && e.metaKey === false
+        }).then(()=>{ 
+          console.log("BACK LOGGGING: In onClick, sendMessage with 'open' command successful ")
+        }).catch(e => console.log("BACK LOGGGING: Error in sendMessage with 'open' command ", e));
+      }
+
+      shortcuts.set(prevChap, {
+        id: 'previous-chapter',
+        span: prevChap,
+        action: () => prevChap.click()
+      });
+    }
+
+    if (article.prevLink || article.nextLink) {
+      shortcuts.render();
+    }
+
+  }
+
   iframe.contentDocument.documentElement.appendChild(styles.internals);
 
   // highlight
@@ -911,7 +961,7 @@ const render = () => chrome.runtime.sendMessage({
         return;
       }
     }
-    catch (e) {}
+    catch (e) { }
     document.getElementById('highlight-button').dataset.disabled = active === false;
   });
   // close on escape
