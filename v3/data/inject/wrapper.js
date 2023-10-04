@@ -278,6 +278,8 @@ try {
           });
         }
         else {
+
+          console.log("Wrapper.js: Conversion successful. Sending message to worker.js to open-reader view")
           chrome.runtime.sendMessage({
             cmd: 'open-reader',
             article
@@ -298,6 +300,7 @@ try {
         document.addEventListener('DOMContentLoaded', convert);
       }
       else {
+        console.log("Wrapper.js: Running convert() to convert page to reader view")
         convert();
       }
     }

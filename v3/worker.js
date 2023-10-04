@@ -32,6 +32,7 @@ const notify = e => chrome.notifications.create({
 });
 
 const onClicked = async (tab, embedded = false) => {
+  console.log(`Inside "onClicked" of worker.js, with tab ${tab.id}, ${tab.url}`)
   const root = chrome.runtime.getURL('');
   if (tab.url && tab.url.startsWith(root)) {
     chrome.tabs.sendMessage(tab.id, {
@@ -128,6 +129,7 @@ const lazy = id => {
 };
 lazy.cache = {};
 lazy.watch = (tabId, info, tab) => {
+  console.log(`Inside "lazy.watch", with tabId ${tabId}, info-url ${info.url}, tab url ${tab.url} , tab-pending-url ${tab.pendingURL}. lazy.cache[tabId]: ${lazy.cache[tabId]}}`)
   // Google News redirects to the original article
   if (tab.url && tab.url.startsWith('https://news.google.com/articles/')) {
     return;
@@ -164,6 +166,7 @@ const onMessage = (request, sender, response) => {
   }
   else if (request.cmd === 'open-reader' && request.article) {
     request.article.icon = sender.tab.favIconUrl;
+    console.log("Worker.js: Opening the reader view in tab id : ", sender.tab.id)
     aStorage.set(sender.tab.id, request.article).then(() => {
       const id = sender.tab ? sender.tab.id : '';
       const url = sender.tab ? sender.tab.url : '';
@@ -186,6 +189,7 @@ const onMessage = (request, sender, response) => {
           'highlights-objects': defaults['highlights-objects']
         }, prefs => {
           article.highlights = prefs['highlights-objects'][article.url.split('#')[0]];
+          console.log("Worker.js: Sending article data to the reader for rendering.")
           response(article);
         });
         chrome.action.setIcon({
@@ -206,6 +210,7 @@ const onMessage = (request, sender, response) => {
   }
   else if (request.cmd === 'open') {
     const id = sender.tab ? sender.tab.id : '';
+    console.log(`Responding to 'open' for sender.tab.id ${sender?.tab?.id}, request.url ${request?.url}, request.current ${request?.current}, request.reader ${request?.reader}`)
 
     // open in the current tab
     if (request.current) {
@@ -214,6 +219,12 @@ const onMessage = (request, sender, response) => {
       }
       chrome.tabs.update({
         url: request.url
+      }).then(tab => {
+        chrome.tabs.update({
+          url: request.url
+        })
+      }).catch(error => {
+        console.log(`Error updating tab to go to URL ${request.url}, cause : ${error}`)
       });
     }
     else {

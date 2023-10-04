@@ -732,6 +732,9 @@ const render = () => chrome.runtime.sendMessage({
 
   article = obj;
 
+  console.log("next link : %s", article.nextLink)
+  console.log("prev link : %s", article.prevLink)
+
   document.title = document.oTitle = config.prefs.title
     .replace('[ORIGINAL]', (article.title || args.get('url')).replace(' :: Reader View', ''))
     .replace('[BRAND]', 'Reader View');
