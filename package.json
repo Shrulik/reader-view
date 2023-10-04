@@ -1,0 +1,20 @@
+{
+  "name": "reader-view",
+  "version": "1.0.0",
+  "description": "A Reader extension for chrome",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "test": "jest",
+    "test-failed" : "jest --runInBand -f"
+  },
+  "devDependencies": {
+    "eslint": "^8.49.0",
+    "global-jsdom": "^9.1.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^22.1.0",
+    "linkedom": "^0.15.3"
+  }
+}
