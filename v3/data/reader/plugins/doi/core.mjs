@@ -104,7 +104,7 @@ function enable() {
 }
 function disable() {
   try {
-    document.getElementById('doi').remove();
+    document.getElementById('doi')?.remove();
   }
   catch (e) {}
 }

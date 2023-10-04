@@ -27,10 +27,12 @@
     if (e.target.checked) {
       chrome.permissions.request({
         origins: ['*://*/*']
-      }, granted => {
+      }).then((granted) => {
         if (granted === false) {
           e.target.checked = false;
         }
+      }, (err) => {
+        console.warn(err);
       });
     }
   };
