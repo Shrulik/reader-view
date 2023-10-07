@@ -1108,12 +1108,12 @@ const disableOSSync = () => {
 
 // load
 config.load(() => {
-  if (config.prefs['os-sync'] && dark_scheme_media_query) {
-    document.body.dataset.mode =
-        dark_scheme_media_query.matches ? config.prefs['preferredDarkMode'] : config.prefs['preferredLightMode']
+
+  if (config.prefs['os-sync'] && dark_scheme_media_query){
+    config.prefs.mode = dark_scheme_media_query.matches ? config.prefs['preferredDarkMode'] : config.prefs['preferredLightMode']
     enableOSSync();
-  } else
-      document.body.dataset.mode = config.prefs.mode;
+  }
+  document.body.dataset.mode = config.prefs.mode;
 
   document.body.dataset.toolbar = config.prefs['toggle-toolbar'];
   if (config.prefs['printing-button']) {
