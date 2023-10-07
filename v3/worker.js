@@ -176,37 +176,54 @@ const lazy = id => {
   chrome.tabs.onUpdated.addListener(lazy.watch);
 };
 lazy.cache = {};
-lazy.watch = (tabId, info, tab) => {
-  console.log(`Inside "lazy.watch", with tabId ${tabId}, info-url ${info.url}, tab url ${tab.url} , tab-pending-url ${tab.pendingURL}. lazy.cache[tabId]: ${lazy.cache[tabId]}}`)
+const cssLoading = {}
+lazy.watch = async (tabId, info, tab) => {
+  console.log(`Inside "lazy.watch", with info: ${JSON.stringify(info)} .Lazy.cache[tabId]: ${lazy.cache[tabId]}}`)
   // Google News redirects to the original article
   if (tab.url && tab.url.startsWith('https://news.google.com/articles/')) {
     return;
   }
 
   if (lazy.cache[tabId]) {
-    // Check if the tab has finished loading
-    if (tabId === tab.id && (info.status === 'complete' || info.status === 'loading')) {
-      console.log(`Tab ${tabId} finished loading. Url is ${tab.url}. Inserting loading CSS.`);
-
-      chrome.scripting.insertCSS({
-        files : ['data/inject/next-chap/loading.css'],
+    //I have another flag except lazy.cache because onUpdated is called multiple times and insertCSS is much faster than the onClicked action.
+    if (!cssLoading[tabId]) {
+      cssLoading[tabId] = "loading";
+      console.log(`Inserting loading CSS.`);
+      await chrome.scripting.insertCSS({
+        files: ['data/inject/next-chap/loading.css'],
         target: {
           tabId: tab.id
         }
-      }).then(() => {
-        console.log("Loading CSS injected.");
-      }, error => {
-        console.error(`Error injecting loading CSS: ${error}`);
-      });
+      })
     }
 
-    onClicked(tab);
-    delete lazy.cache[tabId];
-    if (Object.keys(lazy.cache).length === 0) {
-      chrome.tabs.onUpdated.removeListener(lazy.watch);
+    if( info.status === 'complete' ) {
+      console.log(`Calling onClicked(${tab.id}).`);
+      onClicked(tab)
+      delete lazy.cache[tabId];
+      if (Object.keys(lazy.cache).length === 0) {
+        chrome.tabs.onUpdated.removeListener(lazy.watch);
+      }
     }
   }
 };
+
+// It seems history.back(-2) which is the way the reader is closed, doesn't reinject the loading.css, so I don't need to remove it.
+// Just allow injecting it again if reader is opened again.
+// In fact, removing it in the loading phase will create a flicker of the underlying page, since I have to remove it while
+// the tab is still on the original page, and not on the reader. Once I'm in the reader, I don't have access to the original page.
+// I could listen to the 'closed' event and remove the css then, but doesn't seem necessary.
+const cleanupLoadingCSS = (tabId, forceRemoval) => {
+  if (forceRemoval){
+    chrome.scripting.removeCSS({
+      files: ['data/inject/next-chap/loading.css'],
+      target: {
+        tabId
+      }
+    })
+  }
+  cssLoading[tabId] = false;
+}
 
 const onMessage = (request, sender, response) => {
   if (request.cmd === 'switch-to-reader-view') {
@@ -221,10 +238,13 @@ const onMessage = (request, sender, response) => {
       chrome.tabs.update(id, {
         url: chrome.runtime.getURL('/data/reader/index.html?id=' + id + '&url=' + encodeURIComponent(url))
       });
-    }).catch(notify);
+    }).catch(notify).finally(
+        () => {cleanupLoadingCSS(sender.tab.id)}
+    );
   }
   else if (request.cmd === 'open-reader') {
     notify(chrome.i18n.getMessage('bg_warning_1'));
+    cleanupLoadingCSS(sender.tab.id, true);
   }
   else if (request.cmd === 'notify') {
     notify(request.msg);
