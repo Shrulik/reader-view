@@ -159,6 +159,40 @@ class UrlUtils {
 
     return [...hrefsToLinks.values()];
   }
+
+  /**
+   * This method removes all links that don't have anything useful or easily comprehensible in the href attribute
+   * or refere to elements in the current page.
+   * For example, just have 'href="#"', 'href="#top"' or 'href="javascript:void(0);"'
+   * @param links - links to filter
+   * @param {URL} curURL - the current page URL
+   * @returns normal http/https links to a different page
+   */
+  static removeBogusLinks(links, curURL) {
+
+
+    /**
+     * An anchor link leads to a different page fragment on the same page, not another page by definition.
+     *
+     * Note: There is some chance that http://host.com/chap#5 is the way actual page loading is handled via JS
+     * or server side rendering or something so if there is a link to http://host.com/chap#5 instead of just #5 I don't remove it.
+     * For this I check the attribute and not the calculated href property.
+     */
+    function isAnchorLink(link) {
+      return  link.getAttribute('href').startsWith("#") ||  link.href === curURL.href + "#"
+    }
+
+    /**
+     * Validate a reall http/https link, and not something weird like a javascript:void(0); or mailto:
+     * @param link
+     * @returns {boolean}
+     */
+    function isHttpLink(link) {
+      return !(link.href.includes(':') && !link.href.startsWith('http'))
+    }
+
+    return Array.from(links).filter(link => isHttpLink(link) && !isAnchorLink(link) && link.href !== curURL.href);
+  }
 }
 
 class NavigationLocator {
