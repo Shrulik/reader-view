@@ -31,8 +31,15 @@ self.importScripts('storage.js');
  */
 async function loadNextChap(tab) {
 
-    const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
-    const sessionStorage = await chrome.storage.session.get(nextChapLoadedOnPage);
+  if (typeof (NavType) !== 'undefined')
+    return
+
+  await chrome.storage.session.setAccessLevel({
+    accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS'
+  })
+
+  const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
+  const sessionStorage = await chrome.storage.session.get(nextChapLoadedOnPage);
 
     if (!sessionStorage.nextChapLoadedOnPage) {
         const target = {tabId: tab.id}
@@ -125,12 +132,12 @@ chrome.action.onClicked.addListener(onClicked);
 
 
 chrome.commands.onCommand.addListener(function(command, tab) {
-    if (command === 'toggle-reader-view') {
-        chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        }, ([tab]) => tab && onClicked(tab));
-    }
+  if (command === 'toggle-reader-view') {
+    chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    }, ([tab]) => tab && onClicked(tab));
+  }
 
   if (tab.url.includes(chrome.runtime.id)) {
     //Inside the extension, let the extension handle the command.
@@ -151,30 +158,30 @@ chrome.commands.onCommand.addListener(function(command, tab) {
     })
   }
 
-    if (command === 'go-to-prev') {
-        loadNextChap(tab).then(() => {
-            chrome.scripting.executeScript(
-                {
-                    target: {tabId: tab.id},
-                    func: goToPrev,
-                }
-            )
-        })
-    }
+  if (command === 'go-to-prev') {
+    loadNextChap(tab).then(() => {
+      chrome.scripting.executeScript(
+          {
+            target: {tabId: tab.id},
+            func: goToPrev,
+          }
+      )
+    })
+  }
 
-    function goToNext() {
-        const navLinks = extractChapLinks(document)
-        const nextLink = navLinks?.nextLink;
-        if (nextLink)
-            location.href = nextLink;
-    }
+  function goToNext() {
+    const navLinks = extractChapLinks(document)
+    const nextLink = navLinks?.nextLink;
+    if (nextLink)
+      location.href = nextLink;
+  }
 
-    function goToPrev() {
-        const navLinks = extractChapLinks(document)
-        const prevLink = navLinks?.prevLink;
-        if (prevLink)
-            location.href = prevLink;
-    }
+  function goToPrev() {
+    const navLinks = extractChapLinks(document)
+    const prevLink = navLinks?.prevLink;
+    if (prevLink)
+      location.href = prevLink;
+  }
 });
 
 /* when tab loads switch to the reader view */
