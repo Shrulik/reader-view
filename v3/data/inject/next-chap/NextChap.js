@@ -95,9 +95,9 @@ class UrlUtils {
    */
   static processLinks(links, location) {
     const curOriginLinks = UrlUtils.filterOtherOrigins(links, location.origin);
-    const uniqueLinks = UrlUtils.removeDuplicates(curOriginLinks);
-    const filteredLinks = UrlUtils.removeParentNodes(uniqueLinks);
-    return filteredLinks;
+    const realLinks = UrlUtils.removeBogusLinks(curOriginLinks, location);
+    const uniqueLinks = UrlUtils.removeDuplicates(realLinks);
+    return UrlUtils.removeParentNodes(uniqueLinks);
   }
 
   static filterOtherOrigins(links, origin) {
@@ -138,6 +138,13 @@ class UrlUtils {
     return filteredNodes;
   }
 
+  /**
+   * Handles duplicate links so only a single candidate is left.
+   * The HTML of duplicate links is retained as a comment on the first found instance of the link for keyword checks
+   * or other possible uses.
+   * @param linkNodes
+   * @returns {any[]}
+   */
   static removeDuplicates(linkNodes) {
     const hrefsToLinks = new Map();
 
@@ -146,12 +153,7 @@ class UrlUtils {
       if (!hrefsToLinks.has(href)) {
         hrefsToLinks.set(href, link);
       } else {
-        // Even if the link is a duplicate, the HTML of the link might provide extra textual informaiton, 
-        // so I'm concatenating it as a comment to the already found link element
-
         hrefsToLinks.get(href).innerHTML += `<!--${link.outerHTML}-->`
-        // const comment = document.createComment(link.outerHTML);
-        // hrefsToLinks.get(href).appendChild(comment);
       }
     });
 
@@ -175,8 +177,8 @@ class NavigationLocator {
 
   /**
    * 
-   * @param {Location} url 
-   * @param {HTMLAnchorElement[]} links 
+   * @param {Location} _url - The url of the current page
+   * @param {HTMLAnchorElement[]} _elements - An array of anchor elements from which the navigation candidate links will be found.
    * @returns {NavigationCandidates} - candidates for next and prev links
    */
   locate(_url, _elements) {
@@ -363,7 +365,7 @@ class NavigationCandidates {
   }
   /**
    * Merges multiple instances of NavigationCandidates, giving higher confidence to link candidates that appear in multiple instances for the same type. 
-   * @param {NavigationCandidates[]} navCandidates 
+   * @param {NavigationCandidates[]} navCandidatesArray - an array of NavigationCandidates arrays. Each representing a result from some Locator
    */
   static mergeNavigationCandidates(navCandidatesArray) {
 
@@ -727,9 +729,9 @@ class PageNumberAnywhereLocator extends NavigationLocator {
 /**
  * 
  * Converts the list of links to a list of CandidateLink of the passed navType each with equal probability. 
- * @param {[]} links 
+ * @param {[HTMLAnchorElement]} links
  * @param {NavType} navType 
- * @returns - 
+ * @returns {CandidateLink[]}- a list of CandidateLink
  */
 function equalConfidenceCandidates(links, navType) {
   if (!links?.length)
@@ -799,7 +801,7 @@ function offsetToNavType(a, b) {
  * Extracts all potential links.
  * 
  * @param {Document} doc 
- * @returns {HTMLAnchorElement[] links} - The next and previous chapter links.
+ * @returns {HTMLAnchorElement[]} links - The next and previous chapter links.
  */
 function extractPotentialLinks(doc) {
 
