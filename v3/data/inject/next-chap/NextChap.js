@@ -18,7 +18,7 @@ class UrlUtils {
     new RegExp(UrlUtils.boundary_or_non_number.source + '(\\d{1,4})' + UrlUtils.boundary_or_non_number.source, 'g');
 
 
-  /**
+/**
 * 
 * Returns either null if no chapter candidate was found or the chapter number,
 * or an array of numbers in case there were miltiple matches. If an array is returned, then
@@ -66,7 +66,6 @@ class UrlUtils {
 
   }
 
-
   static toPathSegments(url) {
     return url ? UrlUtils.toFullPath(url).split("/").slice(1) : null
   }
@@ -80,7 +79,7 @@ class UrlUtils {
   }
 
   /**
-   * @param {URL} url 
+   * @param {URL | HTMLAnchorElement} url
    * @returns string - Returns an absolute URL, which is just the href property (Not to be confused with the href attribute which
    * can be a realtive url), but better named. 
    */
@@ -105,7 +104,7 @@ class UrlUtils {
     return Array.from(links).filter(link => link.origin === origin);
   }
   /**
-   * Removes from nodes any node that is a parent of another node in nodes. Assumes nodes is a list of unique elemnets. 
+   * Removes from nodes any node that is a parent of another node in nodes. Assumes nodes is a list of unique elements.
    * @param {Element[]} nodes 
    * @returns {Element[]}
    */
@@ -137,34 +136,6 @@ class UrlUtils {
     }
 
     return filteredNodes;
-  }
-
-  /**
-  * I convert all urls to relative urls. The reason I do this is because 
-  * I'm going to try to parse the URL to understand what part represents the chapter.
-  * Remvoing the base url will make this easier.
-  * 
-  * TODO: Might be pointless, as I can just work with a.pathname and setting a.href acts weird
-  * sometimes, for example when setting to "/" 
-  *  
-  * TODO: To be removed, doesn't seem to actulaly work since href will always return the origin anyway. 
-  * @param {*} linkNodes 
-  * @returns 
-  */
-  static toRelativeLinks(linkNodes, location) {
-    const base = location.href;
-
-    return Array.from(linkNodes).map((link) => {
-
-      const href = link.getAttribute("href");
-      const url = new URL(href, base);
-
-      if (url.origin === location.origin) {
-        link.setAttribute("href", url.pathname + url.search);
-      }
-
-      return link;
-    });
   }
 
   static removeDuplicates(linkNodes) {
@@ -206,10 +177,42 @@ class NavigationLocator {
    * 
    * @param {Location} url 
    * @param {HTMLAnchorElement[]} links 
-   * @returns {NavigationCandidates} - candiates for next and prev links
+   * @returns {NavigationCandidates} - candidates for next and prev links
    */
   locate(_url, _elements) {
     throw new Error('locate method must be implemented');
+  }
+}
+
+/**
+ * This locator looks for links with rel=next/prev which is the way a webpage is supposed to mark the next/prev links.
+ * We will start with trusting webpages that have a rel=next/prev attribute. If there is zero or one of each then this
+ * locator results will be picked.
+ */
+class RelLocator extends NavigationLocator {
+  constructor(weight = 10) {
+    super(weight)
+  }
+
+  locate(url, elements) {
+
+    let nextLinks = [];
+    let prevLinks = [];
+    for( const link of elements ) {
+
+      if ( link.rel === 'next'){
+        nextLinks.push(link)
+      } else if ( link.rel === 'prev'){
+        prevLinks.push(link)
+      }
+    }
+
+    const atLeastOne = nextLinks.length === 1 || prevLinks.length === 1
+    const atMostOneEach =  nextLinks.length <= 1 && prevLinks.length <= 1;
+
+    return atLeastOne && atMostOneEach ?
+        NavigationCandidates.nonAmbiguousCandidates(prevLinks?.[0], nextLinks?.[0], this.weight) :
+        NavigationCandidates.similarityBased(url, prevLinks, nextLinks, this.weight);
   }
 }
 
@@ -297,9 +300,10 @@ class KeywordLocator extends NavigationLocator {
 class NavigationCandidates {
   /**
    * @param {CandidateLink[]} prevCandidates
-   * @param {CandidateLink[]} nextCandidates 
+   * @param {CandidateLink[]} nextCandidates
+   * @param {number} weight - weight of the navigation candidates. Used later in deciding the best candidate.
    */
-  constructor(prevCandidates, nextCandidates, weight = 1) {
+  constructor(prevCandidates, nextCandidates, weight= 1) {
 
     if (!Array.isArray(prevCandidates) || !prevCandidates.every((candidate) => candidate instanceof CandidateLink))
       throw new Error('prevCandidates parameter must be an array of CandidateLinks');
@@ -317,7 +321,7 @@ class NavigationCandidates {
   toString() {
 
     const reduceCandidatesToStr = (str, linkCandidate) => {
-      return `${str}\n\t(${linkCandidate.link},${linkCandidate.confidence})`
+      return `${str}\n\t(Conf: ${linkCandidate.confidence},  ${linkCandidate.link})`
     }
     const nextOutput = this.next.reduce(reduceCandidatesToStr, '') || '\n\tNone'
     const prevOutput = this.prev.reduce(reduceCandidatesToStr, '') || '\n\tNone'
@@ -333,6 +337,30 @@ class NavigationCandidates {
       navTypeToCandidates.get(NavType.NEXT) || [], weight)
   }
 
+  static nonAmbiguousCandidates(prevLink, nextLink, weight) {
+    if (!prevLink &&!nextLink)
+      throw new Error("At least one of prevLink or nextLink must be provided")
+
+    return new NavigationCandidates(
+        prevLink ? [ new CandidateLink(prevLink, NavType.PREV, 1)] : [],
+        nextLink ? [new CandidateLink(nextLink, NavType.NEXT, 1)] : [],
+        weight)
+
+  }
+
+  /**
+   *
+   * @param {URL} baseUrl -  url of the current page
+   * @param prevLinks - link array of candidates for previous link
+   * @param nextLinks - link array of candidates for next link
+   * @param weight - weight of the navigation candidates
+   * @returns {NavigationCandidates}
+   */
+  static similarityBased( baseUrl, prevLinks, nextLinks, weight ) {
+    return new NavigationCandidates(
+        similarityBasedConfidenceCandidates(baseUrl, prevLinks, NavType.PREV),
+        similarityBasedConfidenceCandidates(baseUrl, nextLinks, NavType.NEXT), weight)
+  }
   /**
    * Merges multiple instances of NavigationCandidates, giving higher confidence to link candidates that appear in multiple instances for the same type. 
    * @param {NavigationCandidates[]} navCandidates 
@@ -465,6 +493,7 @@ class PageNumberSuffixLocator extends NavigationLocator {
     let prevLinks = [];
     let nextLinks = [];
 
+    // TODO: Split query parameters as well ?
     const curPathSegments = UrlUtils.toPathSegments(url)
 
     links.forEach(link => {
@@ -476,7 +505,7 @@ class PageNumberSuffixLocator extends NavigationLocator {
           continue;
 
         if ( !curPathSegments?.[i] ) {
-          //TODO: Should I handle extra segment of chapter only on link ? Anywhere sort of does that.  
+          //TODO: Should I handle extra segment of chapter only on the link ? Anywhere sort of does that.
           continue;
         }
 
@@ -490,21 +519,17 @@ class PageNumberSuffixLocator extends NavigationLocator {
 
           switch (offsetToNavType(curPathNumber, linkChapNumber)) {
             case NavType.NEXT:
-              nextLinks.push(new CandidateLink(link, NavType.NEXT, Levenshtein.get(url.href, link.href)))
+              nextLinks.push(link)
               break;
             case NavType.PREV:
-              prevLinks.push(new CandidateLink(link, NavType.PREV, Levenshtein.get(url.href, link.href)))
+              prevLinks.push(link)
               break;
           }
-        }
-        else {
-          //If the URLs aren't very similar, this locator isn't the one for it. 
-          break;
         }
       }
     });
 
-    return new NavigationCandidates(prevLinks, nextLinks, this.weight);
+    return NavigationCandidates.similarityBased(url, prevLinks, nextLinks, this.weight);
   }
 }
 
@@ -550,9 +575,7 @@ class PageNumberAnywhereLocator extends NavigationLocator {
 
     });
 
-    return new NavigationCandidates(
-      similarityBasedConfidenceCandidates(url, prevLinks, NavType.PREV),
-      similarityBasedConfidenceCandidates(url, nextLinks, NavType.NEXT), this.weight);
+    return NavigationCandidates.similarityBased(url, prevLinks, nextLinks, this.weight);
   }
 
   locateNew(curURL, links) {
@@ -571,38 +594,38 @@ class PageNumberAnywhereLocator extends NavigationLocator {
 
     links.forEach(link => {
       const linkSegments = UrlUtils.toPathSegments(link)
-      let linkAssumedMainPsuedoNum;
+      let linkAssumedMainPseudoNum;
 
       let detectedOffsets = []
       for (let [i, linkSeg] of linkSegments.entries()) {
         const curSeg = curSegments?.[i];
         let linkType;      
-        [linkType, linkAssumedMainPsuedoNum] = PageNumberAnywhereLocator.findCnumInSegments(curSeg, linkSeg)
+        [linkType, linkAssumedMainPseudoNum] = PageNumberAnywhereLocator.findCnumInSegments(curSeg, linkSeg)
 
         if (linkType !== NavType.INVALID)
           detectedOffsets.push(linkType)
       }
 
-      if (detectedOffsets?.length != 1)
+      if (detectedOffsets?.length !== 1)
         return
 
       const offset = detectedOffsets[0]
 
       switch (offset) {
         case NavType.NEXT:
-          if (!matchedPseduoNum && linkAssumedMainPsuedoNum) {
-            matchedPseduoNum = linkAssumedMainPsuedoNum
+          if (!matchedPseduoNum && linkAssumedMainPseudoNum) {
+            matchedPseduoNum = linkAssumedMainPseudoNum
             pseudoNextLink = link
           }
           else {
-            if (matchedPseduoNum && linkAssumedMainPsuedoNum &&
-              matchedPseduoNum > linkAssumedMainPsuedoNum) {
-              matchedPseduoNum = linkAssumedMainPsuedoNum
+            if (matchedPseduoNum && linkAssumedMainPseudoNum &&
+              matchedPseduoNum > linkAssumedMainPseudoNum) {
+              matchedPseduoNum = linkAssumedMainPseudoNum
               pseudoNextLink = link
             }
           }
 
-          if (!linkAssumedMainPsuedoNum)
+          if (!linkAssumedMainPseudoNum)
             nextLinks.push(link);
           break;
         case NavType.PREV:
@@ -614,7 +637,7 @@ class PageNumberAnywhereLocator extends NavigationLocator {
     if (nextLinks.length > 0 && pseudoNextLink)
       console.warn("Something is wrong, I shouldn't be guessing the cur page number if another way is possible.")
 
-    if (nextLinks.length == 0 && pseudoNextLink)
+    if (nextLinks.length === 0 && pseudoNextLink)
       nextLinks.push(pseudoNextLink)
 
     return new NavigationCandidates(
@@ -626,8 +649,7 @@ class PageNumberAnywhereLocator extends NavigationLocator {
    * I'm only going to use this strategy if I find a single matching segment, otherwise 
    * things get too convoluted for this phase of link detection.
    * 
-   * @deprecated - In use by locateOld. Replaced by locate and findCnumInSegments
-   * 
+   *
    * @param {Location} curURL 
    * @param {URL} testLink 
    * @returns 
@@ -665,7 +687,7 @@ class PageNumberAnywhereLocator extends NavigationLocator {
           const segOffset = offsetToNavType(pseudoMainPageNum, testNumbers[0])
           if (segOffset !== NavType.INVALID) {
             pathType.push(segOffset)
-            break; //only one pseudoMainPageNumber is correct
+            break; //only one pseudoMainPageNumber is correct.
           }
         }
       }
@@ -723,7 +745,7 @@ function equalConfidenceCandidates(links, navType) {
  * 
  * @param {URL} originalURL 
  * @param {HTMLAnchorElement[]} links 
- * @param {NavType} navType 
+ * @param {NavType} navType
  * @returns 
  */
 function similarityBasedConfidenceCandidates(originalURL, links, navType) {
@@ -796,7 +818,7 @@ function extractPotentialLinks(doc) {
  * Extracts the next and previous chapter links for the passed document.
  * 
  * @param {Document} doc 
- * @returns {{next: string, prev: string}} - The next and previous chapter links.
+ * @returns {{next: string | undefined, prev: string | undefined}} - The next and previous chapter links.
  */
 function extractChapLinks(doc) {
 
@@ -808,29 +830,36 @@ function extractChapLinks(doc) {
 
   const curLocation = doc.location;
 
+  const relLocator = new RelLocator();
+
+  const relCandidates = relLocator.locate(curLocation, links);
+
+  if (relCandidates.areHighConfidenceCandidates())
+    return relCandidates.bestCandidatesLinks();
+
   const suffixNumberLocator = new PageNumberSuffixLocator()
   const suffixCandidates = suffixNumberLocator.locate(curLocation, links)
 
+  console.log(`Suffix candidates\n: ${suffixCandidates.toString()}`)
   // if ( suffixCandidates.areHighConfidenceCandidates())
   //   return suffixCandidates.bestCandidatesLinks();  
 
   const chapterNumberAnywhereLocator = new PageNumberAnywhereLocator();
   const anywhereCandidates = chapterNumberAnywhereLocator.locate(curLocation, links)
+  console.log(`Anywhere candidates\n: ${anywhereCandidates.toString()}`)
 
   // if (anywhereCandidates.areHighConfidenceCandidates()) {
   //   return anywhereCandidates.bestCandidatesLinks()
   // }
 
   const keywordLocator = new KeywordLocator();
-
   const keywordCandidates = keywordLocator.locate(null, links)
+  console.log(`Keyword candidates\n: ${keywordCandidates.toString()}`)
 
   // if (keywordCandidates.areHighConfidenceCandidates()) {
   //   return keywordCandidates.bestCandidatesLinks()
   // }
 
-
-  // TODO: Merge different candidates and pick best
   return NavigationCandidates.mergeNavigationCandidates([suffixCandidates, anywhereCandidates, keywordCandidates]).bestCandidatesLinks()
 
 }
