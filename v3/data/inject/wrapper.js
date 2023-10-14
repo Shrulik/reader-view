@@ -125,7 +125,6 @@ function getSelectionHTML() {
       return doc;
     }
   }
-  return;
 }
 
 try {
@@ -158,7 +157,6 @@ try {
       if (!article) {
         throw Error('Cannot convert this page!');
       }
-
 
       const navLinks = extractChapLinks(document)
       
@@ -278,7 +276,6 @@ try {
           });
         }
         else {
-
           console.log("Wrapper.js: Conversion successful. Sending message to worker.js to open-reader view")
           chrome.runtime.sendMessage({
             cmd: 'open-reader',

@@ -496,6 +496,10 @@ shortcuts.render = (spans = shortcuts.keys()) => {
     }
     else if (request.cmd === 'close') {
       nav.back(true);
+    } else if (request.cmd === 'go-to-next') {
+      document.getElementById('navigate-next-chapter').click();
+    } else if (request.cmd === 'go-to-prev') {
+      document.getElementById('navigate-previous-chapter').click();
     }
   });
 }

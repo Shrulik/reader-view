@@ -132,16 +132,24 @@ chrome.commands.onCommand.addListener(function(command, tab) {
         }, ([tab]) => tab && onClicked(tab));
     }
 
-    if (command === 'go-to-next') {
-        loadNextChap(tab).then(() => {
-            chrome.scripting.executeScript(
-                {
-                    target: {tabId: tab.id},
-                    func: goToNext,
-                }
-            )
-        })
-    }
+  if (tab.url.includes(chrome.runtime.id)) {
+    //Inside the extension, let the extension handle the command.
+    chrome.tabs.sendMessage(tab.id, {
+      cmd: command
+    })
+    return;
+  }
+
+  if (command === 'go-to-next') {
+    loadNextChap(tab).then(() => {
+      chrome.scripting.executeScript(
+          {
+            target: {tabId: tab.id},
+            func: goToNext,
+          }
+      )
+    })
+  }
 
     if (command === 'go-to-prev') {
         loadNextChap(tab).then(() => {
@@ -287,7 +295,7 @@ const onMessage = (request, sender, response) => {
       }
       chrome.tabs.update({
         url: request.url
-      }).then(tab => {
+      }).then( ()=> {
         chrome.tabs.update({
           url: request.url
         })
