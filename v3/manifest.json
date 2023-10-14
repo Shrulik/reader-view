@@ -41,14 +41,13 @@
   "commands": {
     "go-to-next": {
       "suggested_key": {
-        "default": "Ctrl+Right"
+        "default": "Ctrl+PageDown"
       },
       "description": "Changes tab URL to the logical next page if it was detected."
     },
     "go-to-prev":{
       "suggested_key": {
-        "default": "Ctrl+Left",
-        "mac": "Command+Left"
+        "default": "Ctrl+PageUp"
       },
       "description": "Changes tab URL to the logical previous page if it was detected."
     },
