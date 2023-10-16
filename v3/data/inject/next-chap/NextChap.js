@@ -19,12 +19,12 @@ class UrlUtils {
 
 
 /**
-* 
+*
 * Returns either null if no chapter candidate was found or the chapter number,
 * or an array of numbers in case there were miltiple matches. If an array is returned, then
-* this fuction couldn't tell. Multiple urls are needed. 
-* 
-* @param {string} pathname 
+* this fuction couldn't tell. Multiple urls are needed.
+*
+* @param {string} pathname
 */
   static findSuffixChapterNumberInPath(pathname) {
     const pathSegments = pathname.split("/")
@@ -42,10 +42,10 @@ class UrlUtils {
   }
 
   /**
-   * //TODO: Write unit tests, this probably doesn't do what I think it does being a regex. 
-   * I invented a new word. Cnum is a chapter number. Even Co-pilot got it. 
-   * @param {*} str 
-   * @returns 
+   * //TODO: Write unit tests, this probably doesn't do what I think it does being a regex.
+   * I invented a new word. Cnum is a chapter number. Even Co-pilot got it.
+   * @param {*} str
+   * @returns
    */
   static extractAnyCnumFromString(str) {
 
@@ -66,30 +66,28 @@ class UrlUtils {
 
   }
 
-  static toPathSegments(url) {
-    return url ? UrlUtils.toFullPath(url).split("/").slice(1) : null
-  }
-
-  /** 
-   * @param {URL} url 
-   * @returns {string} - Returns both the pathname and the search of the URL.
+  /**
+   * Splits the URL to path segments and decodes each segment with decodeURIComponent
+   * ,so we don't have irrelevant numbers (%20, etc.).
+   * @param url
+   * @returns {string[]|null}
    */
-  static toFullPath(url) {
-    return url && (url.pathname ?? '') + (url.search ?? '')
+  static toDecodedPathSegments(url) {
+    return url ? url.href.split("/").slice(1).map(decodeURIComponent) : null
   }
 
   /**
    * @param {URL | HTMLAnchorElement} url
    * @returns string - Returns an absolute URL, which is just the href property (Not to be confused with the href attribute which
-   * can be a realtive url), but better named. 
+   * can be a relative url), but better named.
    */
   static toAbsoluteURL(url) {
     return url ? url.href : undefined
   }
 
   /**
-   * 
-   * @param { NodeListOf<HTMLAnchorElement> } links 
+   *
+   * @param { NodeListOf<HTMLAnchorElement> } links
    * @param {Location} location
    * @returns {HTMLAnchorElement[]} - A list of unique links converted to relative form that are not parents of other links.
    */
@@ -105,7 +103,7 @@ class UrlUtils {
   }
   /**
    * Removes from nodes any node that is a parent of another node in nodes. Assumes nodes is a list of unique elements.
-   * @param {Element[]} nodes 
+   * @param {Element[]} nodes
    * @returns {Element[]}
    */
   static removeParentNodes(nodes) {
@@ -172,14 +170,14 @@ class UrlUtils {
 
 
     /**
-     * An anchor link leads to a different page fragment on the same page, not another page by definition.
-     *
-     * Note: There is some chance that http://host.com/chap#5 is the way actual page loading is handled via JS
-     * or server side rendering or something so if there is a link to http://host.com/chap#5 instead of just #5 I don't remove it.
-     * For this I check the attribute and not the calculated href property.
+     * This just removes links with href="#"
+     * In theory, an anchor link leads to a different page fragment on the same page, not another page by definition
+     * so any #something should be removed, but it isn't uncommon http://host.com/chap#5 is the way actual page loading is handled via JS
+     * or server side rendering or something. I remove just the "#" links because they are too generic. Hard to guess
+     * and will confuse the code.
      */
     function isAnchorLink(link) {
-      return  link.getAttribute('href').startsWith("#") ||  link.href === curURL.href + "#"
+      return  link.href === curURL.href + "#"
     }
 
     /**
@@ -210,7 +208,7 @@ class NavigationLocator {
   }
 
   /**
-   * 
+   *
    * @param {Location} _url - The url of the current page
    * @param {HTMLAnchorElement[]} _elements - An array of anchor elements from which the navigation candidate links will be found.
    * @returns {NavigationCandidates} - candidates for next and prev links
@@ -331,7 +329,7 @@ class KeywordLocator extends NavigationLocator {
 }
 
 /**
- * Represents a list of CandidateLink of multiple types for a single url, which is not included. Currently supports just the prev/next types. 
+ * Represents a list of CandidateLink of multiple types for a single url, which is not included. Currently supports just the prev/next types.
   */
 class NavigationCandidates {
   /**
@@ -398,7 +396,7 @@ class NavigationCandidates {
         similarityBasedConfidenceCandidates(baseUrl, nextLinks, NavType.NEXT), weight)
   }
   /**
-   * Merges multiple instances of NavigationCandidates, giving higher confidence to link candidates that appear in multiple instances for the same type. 
+   * Merges multiple instances of NavigationCandidates, giving higher confidence to link candidates that appear in multiple instances for the same type.
    * @param {NavigationCandidates[]} navCandidatesArray - an array of NavigationCandidates arrays. Each representing a result from some Locator
    */
   static mergeNavigationCandidates(navCandidatesArray) {
@@ -441,11 +439,11 @@ class NavigationCandidates {
   }
 
   /**
-   * 
-   * @param {CandidateLink[]} candidateLinks 
-   * @param {Map<string, number>} linkToScoreMap 
-   * @param {number} weight 
-   * @returns 
+   *
+   * @param {CandidateLink[]} candidateLinks
+   * @param {Map<string, number>} linkToScoreMap
+   * @param {number} weight
+   * @returns
    */
   static reduceNavigationCandidates(candidateLinks, linkToScoreMap, weight) {
     return candidateLinks.reduce((linkToScoreMap, candidate) => {
@@ -489,9 +487,9 @@ class NavigationCandidates {
 
 class CandidateLink {
   /**
-   * Class represents that a link is of type chapOffset and the confidence it is true. 
-   * The offset is relative to an original url that isn't included here. 
-   * 
+   * Class represents that a link is of type chapOffset and the confidence it is true.
+   * The offset is relative to an original url that isn't included here.
+   *
    * @param {HTMLAnchorElement} link
    * @param {number} confidence
    * @param {NavType} navType
@@ -515,7 +513,7 @@ function addToMap(map, key, value) {
  * differing by one in the current url and a link url. This locator focuses on the last
  * part of a string being a number, somehting like /chapter-1/ or /chapter1/. It would also
  * catch /chapter/10 .
- * 
+ *
  * It differs only slightly from the PageNumberAnywhereLocator as that one looks for a number
  * anywhere.
  */
@@ -530,10 +528,10 @@ class PageNumberSuffixLocator extends NavigationLocator {
     let nextLinks = [];
 
     // TODO: Split query parameters as well ?
-    const curPathSegments = UrlUtils.toPathSegments(url)
+    const curPathSegments = UrlUtils.toDecodedPathSegments(url)
 
     links.forEach(link => {
-      const link_path = UrlUtils.toPathSegments(link)
+      const link_path = UrlUtils.toDecodedPathSegments(link)
 
       for (let i = 0; i < link_path.length; i++) {
 
@@ -570,19 +568,19 @@ class PageNumberSuffixLocator extends NavigationLocator {
 }
 
 
-/** 
+/**
  * This locator finds the next and previous chapter links by looking for numbers
  * differing by one in the current url and a link url. This locator looks for the number everywhere
  * so it will catch things like /chapter-1-chapter-name or /2-chapter-name
- * 
+ *
  * This locator will just ignore a link if there are multiple numbers in the link that are offset
  * by one from the passed URL. The idea is we can't trivially make a judgement and since this
- * locator is relatively permissive, we just ignore it.  
- * 
+ * locator is relatively permissive, we just ignore it.
+ *
  * This locator also handles the case where the current page has no number, but
- * there is a link to a next page with a number of 0,1 or 2 implying a pseudo chapter 
+ * there is a link to a next page with a number of 0,1 or 2 implying a pseudo chapter
  * number of -1,0 or 1 for the current page. In the case where I find a link to a next of 1 and 2,
- * I prefer the 1.  
+ * I prefer the 1.
  */
 class PageNumberAnywhereLocator extends NavigationLocator {
   constructor(weight = 3) {
@@ -622,20 +620,20 @@ class PageNumberAnywhereLocator extends NavigationLocator {
     if (!links || links.length < 1)
       throw new Error(`links must be a non empty array of HTMLAnchorElement`)
 
-    const curSegments = UrlUtils.toPathSegments(curURL)
+    const curSegments = UrlUtils.toDecodedPathSegments(curURL)
 
     // Represents link to the next page if I guess the current page number of main is matchedPseduoNum.
     let matchedPseduoNum = null
     let pseudoNextLink = null
 
     links.forEach(link => {
-      const linkSegments = UrlUtils.toPathSegments(link)
+      const linkSegments = UrlUtils.toDecodedPathSegments(link)
       let linkAssumedMainPseudoNum;
 
       let detectedOffsets = []
       for (let [i, linkSeg] of linkSegments.entries()) {
         const curSeg = curSegments?.[i];
-        let linkType;      
+        let linkType;
         [linkType, linkAssumedMainPseudoNum] = PageNumberAnywhereLocator.findCnumInSegments(curSeg, linkSeg)
 
         if (linkType !== NavType.INVALID)
@@ -682,43 +680,42 @@ class PageNumberAnywhereLocator extends NavigationLocator {
   }
 
   /**
-   * I'm only going to use this strategy if I find a single matching segment, otherwise 
+   * I'm only going to use this strategy if I find a single matching segment, otherwise
    * things get too convoluted for this phase of link detection.
-   * 
    *
-   * @param {Location} curURL 
-   * @param {URL} testLink 
-   * @returns 
+   *
+   * @param {Location} curURL
+   * @param {URL} testLink
+   * @returns
    */
   static findCnumAnywhereInPath(curURL, testLink) {
 
     if (!curURL || !testLink)
       return NavType.INVALID;
 
-    const curSegments = UrlUtils.toPathSegments(curURL)
-    const testSegments = UrlUtils.toPathSegments(testLink)
+    const curSegments = UrlUtils.toDecodedPathSegments(curURL)
+    const testSegments = UrlUtils.toDecodedPathSegments(testLink)
 
     let pathType = [];
 
-    // TODO: Switch to work on the testSegments since the curLink can have no number
-    curSegments.forEach((segmentA, i) => {
+    let checkedSegmentsMatchOrExtra = true
+    zip('', curSegments, testSegments).forEach(([curSeg, testSeg]) => {
 
-      const numbers = UrlUtils.extractAnyCnumFromString(segmentA)
-      const testNumbers = testSegments?.[i] && UrlUtils.extractAnyCnumFromString(testSegments[i])
+      if (curSeg === testSeg)
+        return;
 
-      if (!testNumbers)
-        return null;
+      const curNumbers = UrlUtils.extractAnyCnumFromString(curSeg)
+      const testNumbers = testSeg && UrlUtils.extractAnyCnumFromString(testSeg)
 
-
-      if (numbers?.length === 1 && testNumbers?.length === 1) {
-        const segOffset = offsetToNavType(numbers[0], testNumbers[0])
-        
+      if (curNumbers?.length === 1 && testNumbers?.length === 1) {
+        const segOffset = offsetToNavType(curNumbers[0], testNumbers[0])
         segOffset !== NavType.INVALID && pathType.push(segOffset)
       }
 
-
       //Sometimes the main/first page of a website will have no number. The next page will then be either 0/1/2
-      if (!numbers && testNumbers.length === 1) {
+      //To limit spurious matches, I'm only going to look for pages where the main page is substring of the next page.
+      if (checkedSegmentsMatchOrExtra && !curNumbers && testNumbers?.length === 1) {
+        // This is the case we are on the non numbered main page and looking for the first numbered page.
         for (const pseudoMainPageNum of [0, 1, -1]) {
           const segOffset = offsetToNavType(pseudoMainPageNum, testNumbers[0])
           if (segOffset !== NavType.INVALID) {
@@ -727,6 +724,21 @@ class PageNumberAnywhereLocator extends NavigationLocator {
           }
         }
       }
+
+      if(checkedSegmentsMatchOrExtra && !testNumbers && curNumbers?.length === 1){
+        //Opposite case. We are on the first numbered page and looking for the non numbered main page.
+        for (const pseudoMainPageNum of [0, 1, -1]) {
+          const segOffset = offsetToNavType(curNumbers[0], pseudoMainPageNum)
+          if (segOffset !== NavType.INVALID) {
+            pathType.push(segOffset)
+            break; //only one pseudoMainPageNumber is correct.
+          }
+        }
+      }
+
+      if (curSeg && testSeg)
+        checkedSegmentsMatchOrExtra = false
+
     })
 
     return pathType.length === 1 ? pathType[0] : NavType.INVALID;
@@ -744,14 +756,14 @@ class PageNumberAnywhereLocator extends NavigationLocator {
     if (urlSegNumbers?.length === 1 && linkNumbers?.length === 1)
       return [offsetToNavType(urlSegNumbers[0], linkNumbers[0])]
 
-      //TODO: Move this logic to the suffix. Matching a number anywhere already catches to much. To also accept 
+      //TODO: Move this logic to the suffix. Matching a number anywhere already catches to much. To also accept
       //  any 0/1/2 is just pointless
     // //Sometimes the main/first page of a website will have no number. The next page will then be either 0/1/2
     // if (!urlSegNumbers && linkNumbers.length === 1) {
     //   for (const pseudoMainPageNum of [0, 1, -1]) {
     //     const segOffset = offsetToNavType(pseudoMainPageNum, linkNumbers[0])
     //     if (segOffset === NavType.NEXT) {
-    //       return [segOffset, pseudoMainPageNum]; //only one pseudoMainPageNumber can match          
+    //       return [segOffset, pseudoMainPageNum]; //only one pseudoMainPageNumber can match
     //     }
     //   }
     // }
@@ -760,11 +772,30 @@ class PageNumberAnywhereLocator extends NavigationLocator {
   }
 
 }
+
+
 /**
- * 
- * Converts the list of links to a list of CandidateLink of the passed navType each with equal probability. 
+ * Zips over multiple arrays and fills the gaps with the fillValue passed as the first parameter.
+ *
+ * @param fillValue
+ * @param arrays
+ * @returns - An array where element i is an array of all the i elements of the passed arrays or a fill value for the shorter arrays.
+ * */
+function zip(fillValue , ...arrays) {
+  var longest = arrays.reduce(function(a,b){
+    return a.length > b.length ? a : b
+  }, []);
+
+  return longest.map(function(_,i){
+    return arrays.map(function(array){return array[i] || fillValue })
+  });
+}
+
+/**
+ *
+ * Converts the list of links to a list of CandidateLink of the passed navType each with equal probability.
  * @param {[HTMLAnchorElement]} links
- * @param {NavType} navType 
+ * @param {NavType} navType
  * @returns {CandidateLink[]}- a list of CandidateLink
  */
 function equalConfidenceCandidates(links, navType) {
@@ -778,11 +809,12 @@ function equalConfidenceCandidates(links, navType) {
 }
 
 /**
- * 
- * @param {URL} originalURL 
- * @param {HTMLAnchorElement[]} links 
+ * TODO: This is pretty basic logic, need to think about it for a bit.
+ *
+ * @param {URL} originalURL
+ * @param {HTMLAnchorElement[]} links
  * @param {NavType} navType
- * @returns 
+ * @returns
  */
 function similarityBasedConfidenceCandidates(originalURL, links, navType) {
   if (!links?.length)
@@ -793,13 +825,16 @@ function similarityBasedConfidenceCandidates(originalURL, links, navType) {
 
   return links.map(link => {
     const editDistance = Levenshtein.get(originalURL.href, link.href)
-    return new CandidateLink(link, navType, editDistance === 1 ? 1 : editDistance === 2 ? .7 : (1 / links.length + 1 / editDistance))
+    return new CandidateLink(link, navType,
+        editDistance === 1 ? 1 :
+                              editDistance === 2 ? .7 :
+                                        ( Math.min(0.2, 1 / links.length) + 1 / editDistance) )
   })
 }
 
 /**
- * 
- * @param {CandidateLink[]} candidates 
+ *
+ * @param {CandidateLink[]} candidates
  * @returns {CandidateLink} - highest confidence candidate
  */
 function maxConfidence(candidates) {
@@ -831,10 +866,10 @@ function offsetToNavType(a, b) {
 }
 
 /**
- * 
+ *
  * Extracts all potential links.
- * 
- * @param {Document} doc 
+ *
+ * @param {Document} doc
  * @returns {HTMLAnchorElement[]} links - The next and previous chapter links.
  */
 function extractPotentialLinks(doc) {
@@ -850,10 +885,10 @@ function extractPotentialLinks(doc) {
 }
 
 /**
- * 
+ *
  * Extracts the next and previous chapter links for the passed document.
- * 
- * @param {Document} doc 
+ *
+ * @param {Document} doc
  * @returns {{next: string | undefined, prev: string | undefined}} - The next and previous chapter links.
  */
 function extractChapLinks(doc) {
@@ -878,7 +913,7 @@ function extractChapLinks(doc) {
 
   console.log(`Suffix candidates\n: ${suffixCandidates.toString()}`)
   // if ( suffixCandidates.areHighConfidenceCandidates())
-  //   return suffixCandidates.bestCandidatesLinks();  
+  //   return suffixCandidates.bestCandidatesLinks();
 
   const chapterNumberAnywhereLocator = new PageNumberAnywhereLocator();
   const anywhereCandidates = chapterNumberAnywhereLocator.locate(curLocation, links)
@@ -904,7 +939,8 @@ function extractChapLinks(doc) {
 
 // let imports = {}
 
-if (typeof module !== "undefined" && module !== null && typeof exports !== "undefined" && module.exports === exports) {
+if (typeof module !== "undefined" && module !== null &&
+    typeof exports !== "undefined" && module.exports === exports) {
   module.exports = {
     PageNumberSuffixLocator, PageNumberAnywhereLocator,
     KeywordLocator, extractPotentialLinks, UrlUtils
