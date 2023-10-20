@@ -252,13 +252,13 @@ class RelLocator extends NavigationLocator {
 
 class KeywordLocator extends NavigationLocator {
 
-  constructor(weight = 2, navTypeToKeyword = {
-    [NavType.NEXT]: ['next'],
-    [NavType.PREV]: ['prev']
-  }) {
-    super(weight)
-    this.navTypeToKeyword = navTypeToKeyword;
-  }
+    constructor(weight = 2, navTypeToKeyword = {
+        [NavType.NEXT]: ['next', 'siguiente', 'التالي', 'suivant', 'следующая', 'nächste', 'próximo', 'successivo', '次の'],
+        [NavType.PREV]: ['previous', 'предыдущая', 'anterior', 'précédent', 'vorherige', '前の', 'precedente']
+    }) {
+        super(weight)
+        this.navTypeToKeyword = navTypeToKeyword;
+    }
 
   locate(url, elements) {
 
