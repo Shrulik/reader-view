@@ -223,22 +223,37 @@ lazy.watch = async (tabId, info, tab) => {
   }
 };
 
-// It seems history.back(-2) which is the way the reader is closed, doesn't reinject the loading.css, so I don't need to remove it.
-// Just allow injecting it again if reader is opened again.
-// In fact, removing it in the loading phase will create a flicker of the underlying page, since I have to remove it while
-// the tab is still on the original page, and not on the reader. Once I'm in the reader, I don't have access to the original page.
-// I could listen to the 'closed' event and remove the css then, but doesn't seem necessary.
-const cleanupLoadingCSS = (tabId, forceRemoval) => {
+const cleanupLoadingCSS = (tab, forceRemoval) => {
+
+  if (tab?.url.startsWith("chrome://")) {
+    // I need to wait for the tab to change to the original website. I then wait for the tab to completely load the
+    // site before removing the loading css files.
+    chrome.tabs.onUpdated.addListener(runCleanupAfterReaderIsClosed);
+    return;
+  }
+
   if (forceRemoval){
     chrome.scripting.removeCSS({
       files: ['data/inject/next-chap/loading.css'],
       target: {
-        tabId
+        tabId : tab.id
       }
     })
   }
-  cssLoading[tabId] = false;
+  cssLoading[tab.id] = false;
+
+  function runCleanupAfterReaderIsClosed(_, change, updatedTab)  {
+    if ( updatedTab.id === tab.id &&
+        updatedTab.url && !updatedTab.url.startsWith("chrome://")
+        && change.status === 'complete'
+    ) {
+      cleanupLoadingCSS(updatedTab, forceRemoval);
+
+      chrome.tabs.onUpdated.removeListener(runCleanupAfterReaderIsClosed);
+    }
+  }
 }
+
 
 const onMessage = (request, sender, response) => {
   if (request.cmd === 'switch-to-reader-view') {
@@ -254,12 +269,14 @@ const onMessage = (request, sender, response) => {
         url: chrome.runtime.getURL('/data/reader/index.html?id=' + id + '&url=' + encodeURIComponent(url))
       });
     }).catch(notify).finally(
-        () => {cleanupLoadingCSS(sender.tab.id)}
+        () => {cleanupLoadingCSS(sender.tab)}
     );
   }
   else if (request.cmd === 'open-reader') {
     notify(chrome.i18n.getMessage('bg_warning_1'));
-    cleanupLoadingCSS(sender.tab.id, true);
+    cleanupLoadingCSS(sender.tab, true);
+  } else if (request.cmd === 'closed') {
+    cleanupLoadingCSS(sender.tab, true);
   }
   else if (request.cmd === 'notify') {
     notify(request.msg);
