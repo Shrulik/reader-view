@@ -722,28 +722,13 @@ function extractChapLinks(doc) {
     const suffixNumberLocator = new PageNumberSuffixLocator()
     const suffixCandidates = suffixNumberLocator.locate(curLocation, links)
 
-    console.log(`Suffix candidates\n: ${suffixCandidates.toString()}`)
-    // if ( suffixCandidates.areHighConfidenceCandidates())
-    //   return suffixCandidates.bestCandidatesLinks();
-
     const chapterNumberAnywhereLocator = new PageNumberAnywhereLocator();
     const anywhereCandidates = chapterNumberAnywhereLocator.locate(curLocation, links)
-    console.log(`Anywhere candidates\n: ${anywhereCandidates.toString()}`)
-
-    // if (anywhereCandidates.areHighConfidenceCandidates()) {
-    //   return anywhereCandidates.bestCandidatesLinks()
-    // }
 
     const keywordLocator = new KeywordLocator();
     const keywordCandidates = keywordLocator.locate(null, links)
-    console.log(`Keyword candidates\n: ${keywordCandidates.toString()}`)
-
-    // if (keywordCandidates.areHighConfidenceCandidates()) {
-    //   return keywordCandidates.bestCandidatesLinks()
-    // }
 
     return NavigationCandidates.mergeNavigationCandidates([suffixCandidates, anywhereCandidates, keywordCandidates]).bestCandidatesLinks()
-
 }
 
 

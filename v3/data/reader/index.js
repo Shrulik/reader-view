@@ -944,15 +944,12 @@ const render = () => chrome.runtime.sendMessage({
     if (article.prevLink) {
       prevChap.disabled = false;
       prevChap.onclick = (e) => {
-        console.log("BACK LOGGGING: In onClick, calling sendMessage with 'open' command ")
         chrome.runtime.sendMessage({
           cmd: 'open',
           url: article.prevLink,
           reader: true,
           current: e.ctrlKey === false && e.metaKey === false
-        }).then(()=>{ 
-          console.log("BACK LOGGGING: In onClick, sendMessage with 'open' command successful ")
-        }).catch(e => console.log("BACK LOGGGING: Error in sendMessage with 'open' command ", e));
+        });
       }
 
       shortcuts.set(prevChap, {

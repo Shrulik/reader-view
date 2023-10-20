@@ -68,7 +68,6 @@ const notify = e => chrome.notifications.create({
 });
 
 const onClicked = async (tab, embedded = false) => {
-  console.log(`Inside "onClicked" of worker.js, with tab ${tab.id}, ${tab.url}`)
   const root = chrome.runtime.getURL('');
   if (tab.url && tab.url.startsWith(root)) {
     chrome.tabs.sendMessage(tab.id, {
@@ -193,7 +192,6 @@ const lazy = id => {
 lazy.cache = {};
 const cssLoading = {}
 lazy.watch = async (tabId, info, tab) => {
-  console.log(`Inside "lazy.watch", with info: ${JSON.stringify(info)} .Lazy.cache[tabId]: ${lazy.cache[tabId]}}`)
   // Google News redirects to the original article
   if (tab.url && tab.url.startsWith('https://news.google.com/articles/')) {
     return;
@@ -203,7 +201,6 @@ lazy.watch = async (tabId, info, tab) => {
     //I have another flag except lazy.cache because onUpdated is called multiple times and insertCSS is much faster than the onClicked action.
     if (!cssLoading[tabId]) {
       cssLoading[tabId] = "loading";
-      console.log(`Inserting loading CSS.`);
       await chrome.scripting.insertCSS({
         files: ['data/inject/next-chap/loading.css'],
         target: {
@@ -213,7 +210,6 @@ lazy.watch = async (tabId, info, tab) => {
     }
 
     if( info.status === 'complete' ) {
-      console.log(`Calling onClicked(${tab.id}).`);
       onClicked(tab)
       delete lazy.cache[tabId];
       if (Object.keys(lazy.cache).length === 0) {
@@ -261,7 +257,6 @@ const onMessage = (request, sender, response) => {
   }
   else if (request.cmd === 'open-reader' && request.article) {
     request.article.icon = sender.tab.favIconUrl;
-    console.log("Worker.js: Opening the reader view in tab id : ", sender.tab.id)
     aStorage.set(sender.tab.id, request.article).then(() => {
       const id = sender.tab ? sender.tab.id : '';
       const url = sender.tab ? sender.tab.url : '';
@@ -289,7 +284,6 @@ const onMessage = (request, sender, response) => {
           'highlights-objects': defaults['highlights-objects']
         }, prefs => {
           article.highlights = prefs['highlights-objects'][article.url.split('#')[0]];
-          console.log("Worker.js: Sending article data to the reader for rendering.")
           response(article);
         });
         chrome.action.setIcon({
@@ -310,7 +304,6 @@ const onMessage = (request, sender, response) => {
   }
   else if (request.cmd === 'open') {
     const id = sender.tab ? sender.tab.id : '';
-    console.log(`Responding to 'open' for sender.tab.id ${sender?.tab?.id}, request.url ${request?.url}, request.current ${request?.current}, request.reader ${request?.reader}`)
 
     // open in the current tab
     if (request.current) {
