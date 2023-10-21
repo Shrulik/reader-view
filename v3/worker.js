@@ -64,7 +64,7 @@ async function loadNextChap(tab) {
 
 const notify = e => {
   console.error(e);
-  chrome.notifications.create({
+  return chrome.notifications.create({
     title: chrome.runtime.getManifest().name,
     type: 'basic',
     iconUrl: '/data/icons/48.png',
@@ -229,8 +229,8 @@ lazy.watch = async (tabId, info, tab) => {
   }
 };
 
-const cleanupLoadingCSS = (tab, forceRemoval) => {
-  console.log(`X.- ${tab.id} - cleanupLoadingCSS tab `)
+
+const cleanupLoadingCSS = (tab) => {
 
   if (tab?.url.startsWith("chrome")) {
     // I need to wait for the tab to change to the original website. I then wait for the tab to completely load the
@@ -239,15 +239,13 @@ const cleanupLoadingCSS = (tab, forceRemoval) => {
     return;
   }
 
-  //TODO: Not sure about the forceRemobal flag
-  if (forceRemoval){
-    chrome.scripting.removeCSS({
-      files: ['data/inject/next-chap/loading.css'],
-      target: {
-        tabId : tab.id
-      }
-    })
-  }
+  chrome.scripting.removeCSS({
+    files: ['data/inject/next-chap/loading.css'],
+    target: {
+      tabId : tab.id
+    }
+  })
+
   cssLoading[tab.id] = false;
 
   function runCleanupAfterReaderIsClosed(_, change, updatedTab)  {
@@ -255,8 +253,7 @@ const cleanupLoadingCSS = (tab, forceRemoval) => {
         updatedTab.url && !updatedTab.url.startsWith("chrome://")
         && change.status === 'complete'
     ) {
-      cleanupLoadingCSS(updatedTab, forceRemoval);
-
+      cleanupLoadingCSS(updatedTab);
       chrome.tabs.onUpdated.removeListener(runCleanupAfterReaderIsClosed);
     }
   }
@@ -282,9 +279,9 @@ const onMessage = (request, sender, response) => {
   }
   else if (request.cmd === 'open-reader') {
     notify(chrome.i18n.getMessage('bg_warning_1'));
-    cleanupLoadingCSS(sender.tab, true);
+    cleanupLoadingCSS(sender.tab);
   } else if (request.cmd === 'closed') {
-    cleanupLoadingCSS(sender.tab, true);
+    cleanupLoadingCSS(sender.tab);
   }
   else if (request.cmd === 'notify') {
     notify(request.msg);
