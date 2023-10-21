@@ -41,33 +41,41 @@ async function loadNextChap(tab) {
   const nextChapLoadedOnPage = `nextChapLoaded- ${encodeURIComponent(tab.url)}-${tab.id}`;
   const sessionStorage = await chrome.storage.session.get(nextChapLoadedOnPage);
 
-    if (!sessionStorage.nextChapLoadedOnPage) {
-        const target = {tabId: tab.id}
+  console.log(`Inside loadNextChap, sessionStorage.nextChapLoadedOnPage:${sessionStorage.nextChapLoaded}`)
+  if (!sessionStorage.nextChapLoadedOnPage) {
+    // console.trace(`Inside loadNextChap - loading`)
 
-        await chrome.scripting.executeScript({
-            target,
-            injectImmediately: true,
-            files: ['data/inject/next-chap/fast-levenshtein/levenshtein.js']
-        });
+      const target = {tabId: tab.id}
 
-        await chrome.scripting.executeScript({
-            target,
-            injectImmediately: true,
-            files: ['data/inject/next-chap/NextChap.js']
-        });
+      await chrome.scripting.executeScript({
+          target,
+          injectImmediately: true,
+          files: ['data/inject/next-chap/fast-levenshtein/levenshtein.js']
+      });
 
-        await chrome.storage.session.set({nextChapLoadedOnPage: true});
-    }
+      await chrome.scripting.executeScript({
+          target,
+          injectImmediately: true,
+          files: ['data/inject/next-chap/NextChap.js']
+      });
+
+      await chrome.storage.session.set({nextChapLoadedOnPage: true});
+      // console.trace(`Inside loadNextChap - complete`)
+  }
 }
 
-const notify = e => chrome.notifications.create({
-  title: chrome.runtime.getManifest().name,
-  type: 'basic',
-  iconUrl: '/data/icons/48.png',
-  message: e.message || e
-});
+const notify = e => {
+  console.error(e);
+  chrome.notifications.create({
+    title: chrome.runtime.getManifest().name,
+    type: 'basic',
+    iconUrl: '/data/icons/48.png',
+    message: e.message || e
+  });
+}
 
 const onClicked = async (tab, embedded = false) => {
+  console.log(`5.- ${tab.id} - Inside onCLicked`)
   const root = chrome.runtime.getURL('');
   if (tab.url && tab.url.startsWith(root)) {
     chrome.tabs.sendMessage(tab.id, {
@@ -183,8 +191,21 @@ chrome.commands.onCommand.addListener(function(command, tab) {
   }
 });
 
+async function insertLoadingCSS(tab){
+  console.log(`4.- ${tab.id} - Inserting loading CSS for tab.`)
+  cssLoading[tab.id] = "loading";
+  await chrome.scripting.insertCSS({
+    files: ['data/inject/next-chap/loading.css'],
+    target: {
+      tabId: tab.id
+    }
+  })
+  cssLoading[tab.id] = "loading_complete"
+}
+
 /* when tab loads switch to the reader view */
 const lazy = id => {
+  console.log(`3a. - ${id} - lazy called `)
   lazy.cache[id] = true;
   chrome.tabs.onUpdated.removeListener(lazy.watch);
   chrome.tabs.onUpdated.addListener(lazy.watch);
@@ -198,18 +219,19 @@ lazy.watch = async (tabId, info, tab) => {
   }
 
   if (lazy.cache[tabId]) {
+    console.log(`3b.- ${tab.id} - Inside "lazy.cache[tabId"] -cssLoading[tabId]:${cssLoading[tabId]}  ${JSON.stringify(info)}`)
+
     //I have another flag except lazy.cache because onUpdated is called multiple times and insertCSS is much faster than the onClicked action.
     if (!cssLoading[tabId]) {
-      cssLoading[tabId] = "loading";
-      await chrome.scripting.insertCSS({
-        files: ['data/inject/next-chap/loading.css'],
-        target: {
-          tabId: tab.id
-        }
-      })
+      console.log(`4a.- ${tab.id} - Inside watch calling insertLoadingCSS with ${info.status}`)
+      await insertLoadingCSS(tab)
     }
 
-    if( info.status === 'complete' ) {
+    if( info.status === 'complete') {
+      if (cssLoading[tabId] !== "loading_complete"){
+        console.log(`4b.- ${tab.id} - Inside 'cssLoading[tabId] !== "loading_complete"'`)
+        await insertLoadingCSS(tab)
+      }
       onClicked(tab)
       delete lazy.cache[tabId];
       if (Object.keys(lazy.cache).length === 0) {
@@ -220,14 +242,16 @@ lazy.watch = async (tabId, info, tab) => {
 };
 
 const cleanupLoadingCSS = (tab, forceRemoval) => {
+  console.log(`X.- ${tab.id} - cleanupLoadingCSS tab `)
 
-  if (tab?.url.startsWith("chrome://")) {
+  if (tab?.url.startsWith("chrome")) {
     // I need to wait for the tab to change to the original website. I then wait for the tab to completely load the
     // site before removing the loading css files.
     chrome.tabs.onUpdated.addListener(runCleanupAfterReaderIsClosed);
     return;
   }
 
+  //TODO: Not sure about the forceRemobal flag
   if (forceRemoval){
     chrome.scripting.removeCSS({
       files: ['data/inject/next-chap/loading.css'],
@@ -250,27 +274,35 @@ const cleanupLoadingCSS = (tab, forceRemoval) => {
   }
 }
 
-
 const onMessage = (request, sender, response) => {
   if (request.cmd === 'switch-to-reader-view') {
     onClicked(sender.tab);
   }
   else if (request.cmd === 'open-reader' && request.article) {
     request.article.icon = sender.tab.favIconUrl;
-    aStorage.set(sender.tab.id, request.article).then(() => {
-      const id = sender.tab ? sender.tab.id : '';
-      const url = sender.tab ? sender.tab.url : '';
-      chrome.tabs.update(id, {
-        url: chrome.runtime.getURL('/data/reader/index.html?id=' + id + '&url=' + encodeURIComponent(url))
-      });
-    }).catch(notify).finally(
-        () => {cleanupLoadingCSS(sender.tab)}
+    aStorage.set(sender.tab.id, request.article).
+    then(() => {
+      console.log(`4c.- ${sender.tab.id} - Calling insertLoadingCSS before updating tab to reader url'`)
+      return insertLoadingCSS(sender.tab)
+    }).
+    then(() =>{
+        const id = sender.tab ? sender.tab.id : '';
+        const url = sender.tab ? sender.tab.url : '';
+        return chrome.tabs.update(id, {
+          url: chrome.runtime.getURL('/data/reader/index.html?id=' + id + '&url=' + encodeURIComponent(url))
+        })
+      }).catch(notify).finally(
+        () => {
+          console.log(`6c.- ${sender?.tab?.id} - Calling cleanupLoadingCSS in flow of open-reader cmd response'`)
+          cleanupLoadingCSS(sender.tab)
+        }
     );
   }
   else if (request.cmd === 'open-reader') {
     notify(chrome.i18n.getMessage('bg_warning_1'));
     cleanupLoadingCSS(sender.tab, true);
   } else if (request.cmd === 'closed') {
+    console.log(`X.- ${sender.tab.id}. -in closed`)
     cleanupLoadingCSS(sender.tab, true);
   }
   else if (request.cmd === 'notify') {
@@ -305,18 +337,17 @@ const onMessage = (request, sender, response) => {
   else if (request.cmd === 'open') {
     const id = sender.tab ? sender.tab.id : '';
 
+    console.log(`1. Tab "open" command received id : ${id}`)
     // open in the current tab
     if (request.current) {
       if (request.reader) { // open in reader view
         lazy(id);
       }
+
       chrome.tabs.update({
         url: request.url
-      }).then( ()=> {
-        chrome.tabs.update({
-          url: request.url
-        })
-      }).catch(error => {
+      })
+      .catch(error => {
         console.log(`Error updating tab to go to URL ${request.url}, cause : ${error}`)
       });
     }
@@ -430,6 +461,7 @@ const onMessage = (request, sender, response) => {
     return true;
   }
 };
+
 chrome.runtime.onMessage.addListener(onMessage);
 
 /* remove highlighting cache */
