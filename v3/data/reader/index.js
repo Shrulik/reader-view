@@ -160,7 +160,7 @@ const download = (href, type, convert = false) => {
   const link = Object.assign(document.createElement('a'), {
     href,
     type,
-    download: article.title.replace( /[<>:"/\\|?*]+/g, '' ) + '.' + extension
+    download: article.title.replace(/[<>:"/\\|?*]+/g, '') + '.' + extension
   });
   link.dispatchEvent(new MouseEvent('click'));
 };
@@ -287,7 +287,7 @@ shortcuts.render = (spans = shortcuts.keys()) => {
             window.notify(lastError);
           }
           else {
-            const {width} = document.getElementById('toolbar').getBoundingClientRect();
+            const { width } = document.getElementById('toolbar').getBoundingClientRect();
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -497,6 +497,10 @@ shortcuts.render = (spans = shortcuts.keys()) => {
     }
     else if (request.cmd === 'close') {
       nav.back(true);
+    } else if (request.cmd === 'go-to-next') {
+      document.getElementById('navigate-next-chapter').click();
+    } else if (request.cmd === 'go-to-prev') {
+      document.getElementById('navigate-previous-chapter').click();
     }
   });
 }
@@ -552,11 +556,11 @@ const styles = {
 
 function getFont(font) {
   switch (font) {
-  case 'serif':
-    return 'Georgia, "Times New Roman", serif';
-  case 'sans-serif':
-  default:
-    return 'Helvetica, Arial, sans-serif';
+    case 'serif':
+      return 'Georgia, "Times New Roman", serif';
+    case 'sans-serif':
+    default:
+      return 'Helvetica, Arial, sans-serif';
   }
 }
 
@@ -667,7 +671,7 @@ document.addEventListener('click', e => {
   }
   else if (cmd === 'image-increase' || cmd === 'image-decrease') {
     [...iframe.contentDocument.images].forEach(img => {
-      const {width} = img.getBoundingClientRect();
+      const { width } = img.getBoundingClientRect();
       if (width >= 32) {
         const scale = cmd === 'image-increase' ? 1.1 : 0.9;
         img.width = Math.max(width * scale, 32);
@@ -709,7 +713,7 @@ document.addEventListener('click', e => {
       document.title = document.oTitle;
       [...document.querySelectorAll('.edit-toolbar')].forEach(e => {
         const a = e.contentDocument.querySelector('[data-command="close"]');
-        a.dispatchEvent(new Event('click', {bubbles: true}));
+        a.dispatchEvent(new Event('click', { bubbles: true }));
       });
     }
   }
@@ -747,6 +751,9 @@ const render = () => chrome.runtime.sendMessage({
   console.log(obj);
   article = obj;
 
+  console.log("next link : %s", article.chapters.next)
+  console.log("prev link : %s", article.chapters.previous)
+
   document.title = document.oTitle = config.prefs.title
     .replace('[ORIGINAL]', (article.title || args.get('url')).replace(' :: Reader View', ''))
     .replace('[BRAND]', 'Reader View');
@@ -756,10 +763,10 @@ const render = () => chrome.runtime.sendMessage({
   }
 
   iframe.contentDocument.open();
-  const {pathname, hostname} = (new URL(article.url));
+  const { pathname, hostname } = (new URL(article.url));
   const gcs = window.getComputedStyle(document.documentElement);
 
-  const {textVide} = await import('./libs/text-vide/index.mjs');
+  const { textVide } = await import('./libs/text-vide/index.mjs');
   // http://add0n.com/chrome-reader-view.html#IDComment1118667428
   const content = config.prefs['fixation-point'] ? textVide(article.content.replace(/&nbsp;/g, ' '), {
     fixationPoint: config.prefs['fixation-point']
@@ -858,7 +865,7 @@ const render = () => chrome.runtime.sendMessage({
     const next = document.getElementById('navigate-next');
     const previous = document.getElementById('navigate-previous');
     previous.onclick = next.onclick = e => {
-      const {clientHeight} = iframe.contentDocument.documentElement;
+      const { clientHeight } = iframe.contentDocument.documentElement;
       const lineHeight = parseInt(window.getComputedStyle(document.body).fontSize) * config.prefs.guide;
       const guide = document.getElementById('guide');
       guide.style.height = lineHeight + 'px';
@@ -879,7 +886,7 @@ const render = () => chrome.runtime.sendMessage({
       guide.timeout = setTimeout(() => guide.classList.add('hidden'), config.prefs['guide-timeout']);
     };
     const scroll = () => {
-      const {scrollHeight, clientHeight, scrollTop} = iframe.contentDocument.documentElement;
+      const { scrollHeight, clientHeight, scrollTop } = iframe.contentDocument.documentElement;
       previous.disabled = scrollTop === 0;
       next.disabled = scrollHeight <= scrollTop + clientHeight;
     };
@@ -914,6 +921,53 @@ const render = () => chrome.runtime.sendMessage({
     ready.cache.length = 0;
   }
 
+  // chapter navigation
+  {
+    const nextChap = document.getElementById('navigate-next-chapter');
+    const prevChap = document.getElementById('navigate-previous-chapter');
+
+    if (article.chapters.next) {
+      nextChap.disabled = false;
+      nextChap.onclick = (e) => {
+        chrome.runtime.sendMessage({
+          cmd: 'open',
+          url: article.chapters.next,
+          reader: true,
+          current: e.ctrlKey === false && e.metaKey === false
+        });
+      }
+
+      shortcuts.set(nextChap, {
+        id: 'next-chapter',
+        span: nextChap,
+        action: () => nextChap.click()
+      });
+    }
+
+    if (article.chapters.prev) {
+      prevChap.disabled = false;
+      prevChap.onclick = (e) => {
+        chrome.runtime.sendMessage({
+          cmd: 'open',
+          url: article.chapters.prev,
+          reader: true,
+          current: e.ctrlKey === false && e.metaKey === false
+        });
+      }
+
+      shortcuts.set(prevChap, {
+        id: 'previous-chapter',
+        span: prevChap,
+        action: () => prevChap.click()
+      });
+    }
+
+    if (article.prevLink || article.nextLink) {
+      shortcuts.render();
+    }
+
+  }
+
   iframe.contentDocument.documentElement.appendChild(styles.internals);
 
   // highlight
@@ -926,7 +980,7 @@ const render = () => chrome.runtime.sendMessage({
         return;
       }
     }
-    catch (e) {}
+    catch (e) { }
     document.getElementById('highlight-button').dataset.disabled = active === false;
   });
   // close on escape
